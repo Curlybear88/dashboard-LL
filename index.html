@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Dashboard Greenhouse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3864">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dashboard GH">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--navy:#1f3864;--blue:#4472C4;--org:#ED7D31;--bg:#f4f6fa;--line:#d9dee8;--mut:#667}
+*{box-sizing:border-box}
+body{margin:0;font-family:Calibri,system-ui,sans-serif;background:var(--bg);color:#111;padding-bottom:72px;-webkit-text-size-adjust:100%}
+header{background:var(--navy);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+header b{font-size:18px}header small{display:block;opacity:.8;font-size:12px}
+main{padding:12px;max-width:680px;margin:auto}
+.tab{display:none}.tab.on{display:block}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;border:0;background:none;padding:12px 2px;font-size:14px;color:#555}
+nav button.on{color:var(--blue);font-weight:700;border-top:3px solid var(--blue);padding-top:9px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:16px}
+.sub{font-size:12px;color:var(--mut)}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:14px}
+.kv:last-child{border:0}.kv b{text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px}
+.stat .n{font-size:26px;font-weight:700;color:var(--navy)}.stat .l{font-size:12px;color:var(--mut)}
+.chip{display:inline-block;font-size:11px;border-radius:10px;padding:1px 9px;margin-right:4px;color:#fff}
+.chip.berjalan{background:var(--navy)}.chip.selesai{background:#7f8da8}.chip.rencana{background:var(--org)}
+.bar{height:12px;background:#e6eaf3;border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue)}
+.btn{width:100%;background:var(--blue);color:#fff;border:0;border-radius:8px;padding:12px;font-size:15px;font-weight:700;margin-top:8px}
+.btn.alt{background:#fff;color:var(--blue);border:1px solid var(--blue)}.btn.del{background:#fff;color:#b00020;border:1px solid #b00020}
+.btn.sm{width:auto;padding:7px 12px;font-size:13px;margin:0}
+select,input,textarea{width:100%;font-size:16px;padding:9px;border:1px solid #b9c1d1;border-radius:8px;background:#fff;font-family:inherit}
+label{display:block;font-size:12px;color:#444;margin:9px 0 3px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}
+.chips button{flex:none;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:16px;padding:6px 12px;font-size:13px}
+.chips button.on{background:var(--blue);color:#fff}
+.row{display:flex;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid #eef0f5}.row:last-child{border:0}
+.row .t{flex:1;min-width:0}.row .r{text-align:right;font-size:13px;color:var(--mut)}
+canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:10}#sheet.on{display:block}
+#sheet .in{position:absolute;left:0;right:0;bottom:0;max-height:90%;overflow:auto;background:#fff;border-radius:16px 16px 0 0;padding:16px 14px calc(18px + env(safe-area-inset-bottom))}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#222;color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:20}.toast.show{opacity:1}
+.empty{color:#778;text-align:center;padding:14px;font-size:14px}
+.ghh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.leg{font-size:12px;margin-top:6px}.leg span{margin-right:12px;white-space:nowrap}.leg i{display:inline-block;width:12px;height:10px;margin-right:4px;border-radius:2px}
+</style>
+</head>
+<body>
+<header><b>🏡 Dashboard Greenhouse</b><small id="hdr">Lavaland Farmhouse</small></header>
+<main>
+<section id="t-ring" class="tab on"></section>
+<section id="t-siklus" class="tab"></section>
+<section id="t-gh" class="tab"></section>
+<section id="t-atur" class="tab"></section>
+</main>
+<nav>
+  <button data-t="ring" class="on">Ringkasan</button>
+  <button data-t="siklus">Siklus</button>
+  <button data-t="gh">Greenhouse</button>
+  <button data-t="atur">Atur</button>
+</nav>
+<div id="sheet"><div class="in" id="sin"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ DATA AWAL (dari laporan dan spreadsheet Lavaland) — semua bisa diedit di aplikasi ============ */
+var SEED={v:1,
+ghs:[
+ {id:"A",nama:"GH-A",luas:720,sistem:"Rakit apung (floating raft), irigasi DFS",lajur:"Tiap lajur 2 sisi (Barat dan Timur)",
+  perangkat:"IoT Agrifam (HMI): Ring Blower 2 unit, Exhaust Fan, Pompa Sirkulasi, Pompa Penyiraman, Sample Pump, Solenoid Baku, EC Dose, pH Dose, pompa pengaduk tandon. Tandon Timur dan Barat (dosing di Tandon Barat).",
+  catatan:"Panel listrik 5.500 W/25 A. Pengambilan data nutrisi 3× sehari (Pagi, Siang, Sore)."},
+ {id:"B",nama:"GH-B",luas:720,sistem:"Rakit apung (floating raft), irigasi DFS",lajur:"7 lajur",
+  perangkat:"IoT Agrifam (HMI): Ring Blower, Exhaust Fan, Pompa Sirkulasi Selatan, Pompa Penyiraman, Sample Pump, EC Dose, pH Dose. Jadwal perangkat disamakan dengan GH-A sejak 8 Okt 2026.",
+  catatan:"Panel listrik 5.500 W/25 A. Pengambilan data nutrisi 3× sehari."}
+],
+cycles:[
+ {id:"a1b",gh:"A",nama:"Siklus 1b",var:"Kirin",benih:"",semai:"",tanam:"2026-04-25",panenMulai:"",panenSelesai:"",popTarget:"",popTanam:"",popAkhir:"",buah:"",hasilKg:"",targetKg:"",status:"selesai",
+  catatan:"Sebelumnya disebut Siklus II. Penjualan tercatat mulai 24 Jun 2026. Gramasi: model sigmoid 32–56 HST (18 sampel), bobot rerata 1.187,3 g pada 56 HST. Isi tanggal panen dan hasil bila sudah ada."},
+ {id:"a2",gh:"A",nama:"Siklus 2",var:"Kirin",benih:"Lentera (LAN)",semai:"2026-08-09",tanam:"2026-08-24",panenMulai:"",panenSelesai:"",popTarget:"",popTanam:2672,popAkhir:2511,buah:"",hasilKg:"",targetKg:"",status:"selesai",
+  catatan:"Semai I 3.241 + susulan 242 benih. Populasi terakhir tercatat 22 Sep 2026: 2.511. Bobot rerata 1.232,9 g pada 52 HST (15 Okt). Selesai sebelum Siklus 3 ditanam 25 Okt. Isi tanggal panen dan hasil."},
+ {id:"a3",gh:"A",nama:"Siklus 3",var:"Kirin (ML 1688)",benih:"Crop Power (CP)",semai:"2026-10-10",tanam:"2026-10-25",panenMulai:"2026-12-19",panenSelesai:"",popTarget:"",popTanam:2637,popAkhir:"",buah:"",hasilKg:"",targetKg:"",status:"",
+  catatan:"Populasi aktual 2.637 (data Leader GH; laporan 26 Okt menyebut 2.638). Panen mulai sekitar 19 Des adalah estimasi (55 HST)."},
+ {id:"b1",gh:"B",nama:"Siklus 1",var:"Sweet Hami dan Kirin",benih:"",semai:"",tanam:"2026-07-08",panenMulai:"2026-09-07",panenSelesai:"2026-09-11",popTarget:"",popTanam:"",popAkhir:"",buah:2447,hasilKg:1766.21,targetKg:4000,status:"",
+  catatan:"Tanggal tanam diturunkan dari umur pada laporan panen (7 Sep = 61 HST). Sensus 31 Agu (54 HST): 1.735,44 kg. Kirin 161,66 kg (100 buah, Lajur 1), Sweet Hami 1.604,55 kg (2.347 buah). Panen 7, 10, 11 Sep. 888 buah (36%) jumlahnya diestimasi."},
+ {id:"b2",gh:"B",nama:"Siklus 2",var:"Kirin",benih:"",semai:"",tanam:"2026-09-30",panenMulai:"2026-11-29",panenSelesai:"2026-12-01",popTarget:2528,popTanam:"",popAkhir:"",buah:"",hasilKg:"",targetKg:"",status:"",
+  catatan:"Bibit masuk 2.644 (2.546 produksi + 98 sulaman). Sensus buah 9 Nov (40 HST) dan 19 Nov (50 HST). Lama panen 3 hari adalah anggapan."},
+ {id:"b3",gh:"B",nama:"Siklus 3",var:"",benih:"",semai:"2026-11-25",tanam:"2026-12-06",panenMulai:"",panenSelesai:"",popTarget:"",popTanam:"",popAkhir:"",buah:"",hasilKg:"",targetKg:"",status:"",
+  catatan:"Rencana (usulan). Tanggal semai dan tanam bergantung lama panen GH-B Siklus 2; persiapan tanam 2–5 Des."}
+]};
+
+/* ============ UTIL ============ */
+var P=new URLSearchParams(location.search);
+function nowD(){return P.get("today")?new Date(P.get("today")+"T12:00:00"):new Date()}
+function pad(n){return("0"+n).slice(-2)}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function pd(s){return new Date(s+"T12:00:00")}
+function add(s,n){return ymd(new Date(pd(s).getTime()+n*864e5))}
+function diff(a,b){return Math.round((pd(a)-pd(b))/864e5)}
+var BLN=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+function fd(s){if(!s)return"–";var d=pd(s);return d.getDate()+" "+BLN[d.getMonth()]+" "+d.getFullYear()}
+function fs(s){if(!s)return"–";var d=pd(s);return d.getDate()+" "+BLN[d.getMonth()]}
+function nf(v,d){if(v===""||v==null||isNaN(v))return"–";return Number(v).toLocaleString("id-ID",{maximumFractionDigits:d==null?0:d,minimumFractionDigits:d==null?0:d})}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var $=function(i){return document.getElementById(i)};
+function toast(t){var m=$("toast");m.textContent=t;m.classList.add("show");setTimeout(function(){m.classList.remove("show")},2000)}
+function todayS(){return ymd(nowD())}
+
+/* ============ STATE ============ */
+var KEY="ghd.v1";
+var D=(function(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.ghs&&d.cycles)return d}catch(e){}return JSON.parse(JSON.stringify(SEED))})();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){toast("Gagal menyimpan")}}
+function ghOf(id){return D.ghs.filter(function(g){return g.id===id})[0]}
+function cyOf(id){return D.cycles.filter(function(c){return c.id===id})[0]}
+
+/* ============ LOGIKA SIKLUS ============ */
+var ECT=[[1,3,1.4,"Establishment"],[4,6,1.8,"Establishment"],[7,10,2.2,"Growth"],[11,14,2.6,"Growth"],[15,19,3.0,"Growth"],[20,43,3.4,"Fruit Set"],[44,58,3.0,"Fruit Fill"],[59,999,2.6,"Pematangan"]];
+function ecAt(h){for(var i=0;i<ECT.length;i++)if(h>=ECT[i][0]&&h<=ECT[i][1])return ECT[i];return null}
+function ecNext(h){for(var i=0;i<ECT.length;i++)if(ECT[i][0]>h)return ECT[i];return null}
+function stat(c){if(c.status)return c.status;var td=todayS();if(c.panenSelesai&&c.panenSelesai<td)return"selesai";if(c.tanam&&c.tanam<=td)return"berjalan";return"rencana"}
+var SLAB={berjalan:"Berjalan",selesai:"Selesai",rencana:"Akan datang"};
+function endOf(c){return c.panenSelesai||(c.panenMulai?add(c.panenMulai,3):add(c.tanam,60))}
+function endEst(c){return!c.panenSelesai}
+function fmt1(v){return v.toFixed(1).replace(".",",")}
+function cyclesOf(g){return D.cycles.filter(function(c){return c.gh===g}).sort(function(a,b){return(a.tanam||"9").localeCompare(b.tanam||"9")})}
+function curOf(g){var r=cyclesOf(g).filter(function(c){return stat(c)==="berjalan"});return r[r.length-1]}
+function nextOf(g){return cyclesOf(g).filter(function(c){return stat(c)==="rencana"})[0]}
+function lastOf(g){var r=cyclesOf(g).filter(function(c){return stat(c)==="selesai"});return r[r.length-1]}
+function metrics(c,g){var o=[];
+  if(c.hasilKg!==""&&c.hasilKg!=null){o.push(["Hasil panen",nf(c.hasilKg,2)+" kg"]);if(g&&g.luas)o.push(["Produktivitas",nf(c.hasilKg/g.luas,2)+" kg/m²"]);
+    if(c.targetKg)o.push(["Capaian vs target "+nf(c.targetKg)+" kg",nf(c.hasilKg/c.targetKg*100,1)+"%"]);
+    if(c.buah)o.push(["Jumlah buah · rerata",nf(c.buah)+" · "+nf(c.hasilKg/c.buah,3)+" kg"])}
+  return o}
+
+/* ============ RENDER: RINGKASAN ============ */
+function renderRing(){
+  var td=todayS(),all=D.cycles,fin=all.filter(function(c){return stat(c)==="selesai"}),run=all.filter(function(c){return stat(c)==="berjalan"}),pl=all.filter(function(c){return stat(c)==="rencana"});
+  var kg=0;fin.forEach(function(c){if(c.hasilKg!==""&&c.hasilKg!=null)kg+=Number(c.hasilKg)});
+  var h='<div class="grid2" style="margin-bottom:12px"><div class="stat"><div class="n">'+D.ghs.length+'</div><div class="l">Greenhouse</div></div><div class="stat"><div class="n">'+run.length+'</div><div class="l">Siklus berjalan</div></div>'+
+   '<div class="stat"><div class="n">'+fin.length+'</div><div class="l">Siklus selesai</div></div><div class="stat"><div class="n">'+pl.length+'</div><div class="l">Siklus akan datang</div></div></div>';
+  D.ghs.forEach(function(g){
+    var c=curOf(g.id),nx=nextOf(g.id),ls=lastOf(g.id);
+    h+='<div class="card"><div class="ghh"><h3 style="margin:0">'+esc(g.nama)+' <span class="sub">· '+nf(g.luas)+' m²</span></h3><button class="btn alt sm" data-eg="'+g.id+'">Info</button></div>';
+    if(c){var hst=diff(td,c.tanam),e=ecAt(hst),en=ecNext(hst),pm=c.panenMulai||add(c.tanam,55),pr=Math.max(0,Math.min(100,hst/(diff(pm,c.tanam)||60)*100));
+      h+='<div><span class="chip berjalan">Berjalan</span> <b>'+esc(c.nama)+'</b> · '+esc(c.var||"varietas –")+'</div>'+
+       '<div style="font-size:30px;font-weight:700;color:var(--navy);margin:4px 0">'+hst+' HST</div>'+
+       '<div class="bar"><i style="width:'+pr+'%"></i></div><div class="sub" style="margin:3px 0 6px">Tanam '+fd(c.tanam)+' · panen '+(c.panenMulai?"":"est. ")+fs(pm)+' ('+diff(pm,td)+' hari lagi)</div>'+
+       '<div class="kv"><span>Stadia</span><b>'+(e?e[3]:"–")+'</b></div>'+
+       '<div class="kv"><span>Target EC hari ini</span><b>'+(e?fmt1(e[2])+' dS/m':'–')+'</b></div>'+
+       (en?'<div class="kv"><span>EC berikutnya</span><b>'+fmt1(en[2])+' dS/m pada '+fs(add(c.tanam,en[0]))+' ('+en[0]+' HST)</b></div>':'')+
+       '<div class="kv"><span>Populasi</span><b>'+nf(c.popAkhir||c.popTanam||c.popTarget)+' tanaman</b></div>'+
+       '<button class="btn alt" data-ec="'+c.id+'">Detail siklus</button>';
+    }else h+='<div class="empty" style="padding:8px">Tidak ada siklus yang sedang berjalan</div>';
+    if(nx)h+='<div class="kv" style="margin-top:8px"><span><span class="chip rencana">Akan datang</span> '+esc(nx.nama)+'</span><b>tanam '+fs(nx.tanam)+' ('+diff(nx.tanam,td)+' hari lagi)</b></div>';
+    if(ls)h+='<div class="kv"><span><span class="chip selesai">Terakhir selesai</span> '+esc(ls.nama)+'</span><b>'+(ls.hasilKg!==""&&ls.hasilKg!=null?nf(ls.hasilKg,0)+' kg':'hasil belum diisi')+'</b></div>';
+    h+='</div>'});
+  h+='<div class="card"><h3>Linimasa siklus</h3><canvas id="cvg" width="680" height="'+(60+D.ghs.length*54)+'"></canvas><div class="leg"><span><i style="background:#c9d3ea"></i>Semai</span><span><i style="background:#1f3864"></i>Berjalan</span><span><i style="background:#7f8da8"></i>Selesai</span><span><i style="background:#ED7D31"></i>Akan datang</span></div><div class="sub" style="margin-top:4px">Ujung batang bergaris putus-putus = tanggal akhir estimasi (tanam + 60 hari).</div></div>';
+  if(fin.length){h+='<div class="card"><h3>Hasil siklus selesai</h3>'+(kg?'<div class="kv"><span>Total hasil tercatat</span><b>'+nf(kg,2)+' kg</b></div>':'')+
+    fin.sort(function(a,b){return b.tanam.localeCompare(a.tanam)}).map(function(c){var g=ghOf(c.gh);return'<div class="row" data-ec="'+c.id+'"><div class="t"><b>'+esc(g?g.nama:c.gh)+' · '+esc(c.nama)+'</b><div class="sub">'+fd(c.tanam)+' → '+(c.panenSelesai?fd(c.panenSelesai):"akhir –")+'</div></div><div class="r">'+(c.hasilKg!==""&&c.hasilKg!=null?'<b style="color:var(--navy)">'+nf(c.hasilKg,0)+' kg</b>':'–')+'</div></div>'}).join("")+'</div>'}
+  $("t-ring").innerHTML=h;drawGantt();
+}
+function drawGantt(){
+  var cv=$("cvg");if(!cv)return;var c=cv.getContext("2d"),W=cv.width,H=cv.height,td=todayS();c.clearRect(0,0,W,H);c.font="12px Calibri,sans-serif";
+  var cs=D.cycles.filter(function(x){return x.tanam});if(!cs.length)return;
+  var min=cs.reduce(function(m,x){var s=x.semai||x.tanam;return s<m?s:m},"9999-01-01"),max=cs.reduce(function(m,x){var e=endOf(x);return e>m?e:m},"0000-01-01");
+  min=add(min,-10);max=add(max,12);var L=52,R=10,T=26,B=8,pw=W-L-R,span=diff(max,min);
+  var X=function(s){return L+diff(s,min)/span*pw};
+  // bulan
+  c.fillStyle="#667";c.strokeStyle="#e3e7f0";c.textAlign="left";
+  var d=pd(min);d=new Date(d.getFullYear(),d.getMonth()+1,1,12);
+  while(ymd(d)<max){var x=X(ymd(d));c.beginPath();c.moveTo(x,T-6);c.lineTo(x,H-B);c.stroke();c.fillText(BLN[d.getMonth()],x+2,T-10);d=new Date(d.getFullYear(),d.getMonth()+1,1,12)}
+  D.ghs.forEach(function(g,gi){var y=T+gi*54+8;c.fillStyle="#1f3864";c.font="bold 13px Calibri,sans-serif";c.textAlign="left";c.fillText(g.nama,4,y+22);c.font="12px Calibri,sans-serif";
+    c.strokeStyle="#eef0f5";c.beginPath();c.moveTo(L,y+38+6);c.lineTo(W-R,y+38+6);c.stroke();
+    cyclesOf(g.id).forEach(function(cy){if(!cy.tanam)return;var st=stat(cy),x1=X(cy.tanam),e=endOf(cy),x2=X(e);
+      if(cy.semai){c.fillStyle="#c9d3ea";c.fillRect(X(cy.semai),y+8,Math.max(2,x1-X(cy.semai)),24)}
+      c.fillStyle=st==="berjalan"?"#1f3864":st==="selesai"?"#7f8da8":"#ED7D31";c.fillRect(x1,y+4,Math.max(4,x2-x1),32);
+      if(endEst(cy)){c.setLineDash([4,3]);c.strokeStyle="#fff";c.lineWidth=2;c.beginPath();c.moveTo(x2-1,y+4);c.lineTo(x2-1,y+36);c.stroke();c.setLineDash([]);c.lineWidth=1}
+      c.fillStyle="#fff";c.textAlign="left";var lab=cy.nama.replace("Siklus ","S");if(x2-x1>20)c.fillText(lab,x1+5,y+24)})});
+  var xt=X(td);c.strokeStyle="#ED7D31";c.lineWidth=2;c.beginPath();c.moveTo(xt,T-4);c.lineTo(xt,H-B);c.stroke();c.lineWidth=1;c.fillStyle="#ED7D31";c.textAlign="center";c.fillText("hari ini",Math.min(W-30,Math.max(30,xt)),H-1);
+}
+
+/* ============ RENDER: SIKLUS ============ */
+var fG="",fS="";
+function renderSiklus(){
+  var h='<div class="chips">'+[["","Semua GH"]].concat(D.ghs.map(function(g){return[g.id,g.nama]})).map(function(a){return'<button data-fg="'+a[0]+'" class="'+(fG===a[0]?"on":"")+'">'+a[1]+'</button>'}).join("")+'</div>'+
+   '<div class="chips">'+[["","Semua status"],["berjalan","Berjalan"],["rencana","Akan datang"],["selesai","Selesai"]].map(function(a){return'<button data-fst="'+a[0]+'" class="'+(fS===a[0]?"on":"")+'">'+a[1]+'</button>'}).join("")+'</div>';
+  ["berjalan","rencana","selesai"].forEach(function(st){
+    var l=D.cycles.filter(function(c){return stat(c)===st&&(!fG||c.gh===fG)&&(!fS||fS===st)}).sort(function(a,b){return st==="selesai"?b.tanam.localeCompare(a.tanam):(a.tanam||"9").localeCompare(b.tanam||"9")});
+    if(!l.length)return;
+    h+='<div class="card"><h3>'+SLAB[st]+' ('+l.length+')</h3>'+l.map(function(c){var g=ghOf(c.gh),td=todayS(),info;
+      if(st==="berjalan")info=diff(td,c.tanam)+" HST · tanam "+fs(c.tanam);else if(st==="rencana")info="tanam "+fd(c.tanam)+" ("+diff(c.tanam,td)+" hari lagi)";else info=fs(c.tanam)+" → "+(c.panenSelesai?fs(c.panenSelesai):"–");
+      return'<div class="row" data-ec="'+c.id+'"><div class="t"><b>'+esc(g?g.nama:c.gh)+' · '+esc(c.nama)+'</b><div class="sub">'+esc(c.var||"varietas –")+' · '+info+'</div></div><div class="r">'+(c.hasilKg!==""&&c.hasilKg!=null?nf(c.hasilKg,0)+" kg":nf(c.popAkhir||c.popTanam||c.popTarget)+" tan.")+'</div></div>'}).join("")+'</div>'});
+  h+='<button class="btn" data-newc="'+(fG||D.ghs[0].id)+'">+ Tambah siklus</button>';
+  $("t-siklus").innerHTML=h}
+
+/* ============ RENDER: GREENHOUSE ============ */
+function renderGH(){
+  var h="";D.ghs.forEach(function(g){var cs=cyclesOf(g.id);
+    h+='<div class="card"><div class="ghh"><h3 style="margin:0">'+esc(g.nama)+'</h3><button class="btn alt sm" data-eg="'+g.id+'">Ubah</button></div>'+
+     '<div class="kv"><span>Luas</span><b>'+nf(g.luas)+' m²</b></div><div class="kv"><span>Sistem</span><b>'+esc(g.sistem||"–")+'</b></div><div class="kv"><span>Lajur</span><b>'+esc(g.lajur||"–")+'</b></div>'+
+     '<div style="margin-top:6px;font-size:14px"><span class="sub">Perangkat dan IoT</span><br>'+esc(g.perangkat||"–")+'</div>'+
+     (g.catatan?'<div style="margin-top:6px;font-size:14px"><span class="sub">Catatan</span><br>'+esc(g.catatan)+'</div>':'')+
+     '<div style="margin-top:8px" class="sub">Siklus ('+cs.length+')</div>'+
+     cs.map(function(c){return'<div class="row" data-ec="'+c.id+'" style="padding:7px 2px"><div class="t"><span class="chip '+stat(c)+'">'+SLAB[stat(c)]+'</span> '+esc(c.nama)+'</div><div class="r">'+fs(c.tanam)+'</div></div>'}).join("")+'</div>'});
+  h+='<button class="btn" data-newg="1">+ Tambah greenhouse</button>';
+  h+='<div class="card" style="margin-top:12px"><h3>Target EC per stadia (SOP)</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:var(--blue);color:#fff"><th style="padding:5px;text-align:left">Umur</th><th style="text-align:left">Stadia</th><th style="text-align:right;padding-right:6px">EC (dS/m)</th></tr>'+
+    ECT.map(function(r,i){return'<tr style="background:'+(i%2?"#eef2fb":"#fff")+'"><td style="padding:5px">'+(r[1]>=999?"≥ "+r[0]:r[0]+"–"+r[1])+' HST</td><td>'+r[3]+'</td><td style="text-align:right;padding-right:6px">'+fmt1(r[2])+'</td></tr>'}).join("")+'</table><div class="sub" style="margin-top:6px">Toleransi ±0,2 dS/m. pH 5,8–6,4; DO &gt; 1,9 mg/L. Panen sekitar 55–60 HST.</div></div>';
+  $("t-gh").innerHTML=h}
+
+/* ============ RENDER: ATUR ============ */
+function renderAtur(){
+  $("t-atur").innerHTML='<div class="card"><h3>Data</h3><button class="btn" id="bkp">Unduh cadangan (JSON)</button><label style="margin-top:12px">Pulihkan dari cadangan</label><input type="file" id="imp" accept=".json,application/json">'+
+   '<button class="btn alt" id="csv">Unduh daftar siklus (CSV/Excel)</button><button class="btn del" id="rst" style="margin-top:12px">Kembalikan data awal</button></div>'+
+   '<div class="card"><h3>Tentang data</h3><p class="sub" style="margin:0">Data awal diambil dari laporan hasil panen GH-B Siklus 1, laporan gramasi GH-A, spreadsheet populasi GH-A Siklus 2, rencana kerja November 2026, dan SOP budidaya. Kolom bertanda "–" belum terisi; lengkapi lewat tombol Detail pada tiap siklus. Data tersimpan di HP ini, jadi unduh cadangan secara berkala.</p></div>'}
+
+/* ============ SHEET: EDIT ============ */
+var CF=[["nama","Nama siklus","text"],["var","Varietas","text"],["benih","Sumber benih","text"],["semai","Tanggal semai","date"],["tanam","Tanggal tanam (0 HST)","date"],["panenMulai","Panen mulai","date"],["panenSelesai","Panen selesai","date"],["popTarget","Target populasi","number"],["popTanam","Populasi saat tanam","number"],["popAkhir","Populasi terakhir","number"],["buah","Jumlah buah dipanen","number"],["hasilKg","Hasil panen (kg)","number"],["targetKg","Target hasil (kg)","number"]];
+var GF=[["nama","Nama greenhouse","text"],["luas","Luas (m²)","number"],["sistem","Sistem budidaya","text"],["lajur","Lajur","text"],["perangkat","Perangkat dan IoT","area"],["catatan","Catatan","area"]];
+function formHTML(fields,o){return fields.map(function(f){var v=o[f[0]]==null?"":o[f[0]];
+  return'<label>'+f[1]+'</label>'+(f[2]==="area"?'<textarea rows="3" data-f="'+f[0]+'">'+esc(v)+'</textarea>':'<input data-f="'+f[0]+'" type="'+f[2]+'" '+(f[2]==="number"?'inputmode="decimal" step="any" ':'')+'value="'+esc(v)+'">')}).join("")}
+function readForm(fields,o){fields.forEach(function(f){var el=document.querySelector('#sin [data-f="'+f[0]+'"]');if(!el)return;var v=el.value.trim();o[f[0]]=f[2]==="number"?(v===""?"":Number(v.replace(",","."))):v})}
+function openCycle(id,gh){
+  var c=id?cyOf(id):{gh:gh,nama:"Siklus "+(cyclesOf(gh).length+1),status:"",catatan:""},g=ghOf(c.gh),st=id?stat(c):"rencana",h='';
+  h+='<div style="font-size:18px;font-weight:700">'+(id?esc(g.nama)+' · '+esc(c.nama):'Siklus baru')+'</div>';
+  if(id){h+='<div style="margin:4px 0"><span class="chip '+st+'">'+SLAB[st]+'</span></div>';
+    var m=metrics(c,g);if(c.tanam){var td=todayS();
+      if(st==="berjalan"){m.unshift(["Umur sekarang",diff(td,c.tanam)+" HST"]);m.push(["Perkiraan panen",(c.panenMulai?"":"est. ")+fd(c.panenMulai||add(c.tanam,55))])}
+      else if(st==="rencana"){m.unshift(["Tanam",fd(c.tanam)+" ("+diff(c.tanam,td)+" hari lagi)"]);if(c.semai)m.push(["Semai",fd(c.semai)])}
+      else if(c.panenSelesai)m.unshift(["Durasi tanam → panen selesai",diff(c.panenSelesai,c.tanam)+" hari ("+diff(c.panenSelesai,c.tanam)+" HST)"])}
+    h+=m.map(function(r){return'<div class="kv"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'}).join("")}
+  h+='<label>Greenhouse</label><select data-f="gh">'+D.ghs.map(function(x){return'<option value="'+x.id+'"'+(x.id===c.gh?" selected":"")+'>'+esc(x.nama)+'</option>'}).join("")+'</select>'+
+    formHTML(CF,c)+'<label>Status</label><select data-f="status"><option value="">Otomatis dari tanggal</option><option value="rencana"'+(c.status==="rencana"?" selected":"")+'>Akan datang</option><option value="berjalan"'+(c.status==="berjalan"?" selected":"")+'>Berjalan</option><option value="selesai"'+(c.status==="selesai"?" selected":"")+'>Selesai</option></select>'+
+    '<label>Catatan</label><textarea rows="5" data-f="catatan">'+esc(c.catatan)+'</textarea>'+
+    '<button class="btn" data-savec="'+(id||"")+'">Simpan</button>'+(id?'<button class="btn del" data-delc="'+id+'">Hapus siklus</button>':'')+'<button class="btn alt" data-close="1">Tutup</button>';
+  $("sin").innerHTML=h;$("sheet").classList.add("on")}
+function openGH(id){
+  var g=id?ghOf(id):{nama:"GH-"+String.fromCharCode(65+D.ghs.length),luas:720,sistem:"Rakit apung (floating raft)",lajur:"",perangkat:"",catatan:""};
+  $("sin").innerHTML='<div style="font-size:18px;font-weight:700">'+(id?"Ubah "+esc(g.nama):"Greenhouse baru")+'</div>'+formHTML(GF,g)+
+   '<button class="btn" data-saveg="'+(id||"")+'">Simpan</button>'+(id&&D.ghs.length>1?'<button class="btn del" data-delg="'+id+'">Hapus greenhouse</button>':'')+'<button class="btn alt" data-close="1">Tutup</button>';
+  $("sheet").classList.add("on")}
+
+/* ============ AKSI ============ */
+function dl(name,text,type){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-ec],[data-eg],[data-newc],[data-newg],[data-savec],[data-delc],[data-saveg],[data-delg],[data-close],[data-fg],[data-fst]"),id=e.target.id;
+  if(e.target.id==="sheet"){$("sheet").classList.remove("on");return}
+  if(id==="bkp"){dl("cadangan_dashboard_gh_"+todayS()+".json",JSON.stringify(D),"application/json");return}
+  if(id==="csv"){var r=[["Greenhouse","Siklus","Status","Varietas","Semai","Tanam","Panen mulai","Panen selesai","Populasi","Buah","Hasil (kg)","Target (kg)","Catatan"]];
+    D.cycles.forEach(function(c){var g=ghOf(c.gh);r.push([g?g.nama:c.gh,c.nama,SLAB[stat(c)],c.var,c.semai,c.tanam,c.panenMulai,c.panenSelesai,c.popAkhir||c.popTanam||c.popTarget,c.buah,c.hasilKg,c.targetKg,c.catatan])});
+    dl("siklus_greenhouse_"+todayS()+".csv","﻿"+r.map(function(x){return x.map(function(v){return'"'+String(v==null?"":v).replace(/"/g,'""')+'"'}).join(",")}).join("\r\n"),"text/csv");return}
+  if(id==="rst"){if(confirm("Kembalikan ke data awal? Semua perubahan Anda akan hilang.")){D=JSON.parse(JSON.stringify(SEED));save();renderAll();toast("Data awal dipulihkan")}return}
+  if(!el)return;var ds=el.dataset;
+  if(ds.close){$("sheet").classList.remove("on");return}
+  if(ds.ec){openCycle(ds.ec);return}if(ds.eg){openGH(ds.eg);return}if(ds.newc){openCycle(null,ds.newc);return}if(ds.newg){openGH(null);return}
+  if(ds.fg!==undefined){fG=ds.fg;renderSiklus();return}if(ds.fst!==undefined){fS=ds.fst;renderSiklus();return}
+  if(ds.savec!==undefined){var c=ds.savec?cyOf(ds.savec):{id:"c"+Date.now()};readForm(CF,c);c.gh=document.querySelector('#sin [data-f="gh"]').value;c.status=document.querySelector('#sin [data-f="status"]').value;c.catatan=document.querySelector('#sin [data-f="catatan"]').value;
+    if(!c.nama){toast("Isi nama siklus");return}if(!ds.savec)D.cycles.push(c);save();$("sheet").classList.remove("on");renderAll();toast("Tersimpan");return}
+  if(ds.delc){if(confirm("Hapus siklus ini?")){D.cycles=D.cycles.filter(function(x){return x.id!==ds.delc});save();$("sheet").classList.remove("on");renderAll()}return}
+  if(ds.saveg!==undefined){var g=ds.saveg?ghOf(ds.saveg):{id:"g"+Date.now()};readForm(GF,g);if(!g.nama){toast("Isi nama greenhouse");return}if(!ds.saveg)D.ghs.push(g);save();$("sheet").classList.remove("on");renderAll();toast("Tersimpan");return}
+  if(ds.delg){var n=D.cycles.filter(function(x){return x.gh===ds.delg}).length;if(confirm("Hapus greenhouse ini"+(n?" beserta "+n+" siklusnya":"")+"?")){D.ghs=D.ghs.filter(function(x){return x.id!==ds.delg});D.cycles=D.cycles.filter(function(x){return x.gh!==ds.delg});save();$("sheet").classList.remove("on");renderAll()}return}
+});
+document.addEventListener("change",function(e){if(e.target.id==="imp"){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(!d.ghs||!d.cycles)throw 0;if(confirm("Ganti semua data dengan cadangan?")){D=d;save();renderAll();toast("Data dipulihkan")}}catch(x){toast("File cadangan tidak valid")}};r.readAsText(f)}});
+document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("nav button").forEach(function(x){x.classList.toggle("on",x===b)});document.querySelectorAll(".tab").forEach(function(s){s.classList.toggle("on",s.id==="t-"+b.dataset.t)});renderAll()}});
+function renderAll(){var on=document.querySelector(".tab.on").id;
+  if(on==="t-ring")renderRing();else if(on==="t-siklus")renderSiklus();else if(on==="t-gh")renderGH();else renderAtur();
+  $("hdr").textContent="Lavaland Farmhouse · "+(function(){var d=pd(todayS());return d.getDate()+" "+BLN[d.getMonth()]+" "+d.getFullYear()})()}
+renderAll();
+document.addEventListener("visibilitychange",function(){if(!document.hidden)renderAll()});
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
+</script>
+</body>
+</html>
